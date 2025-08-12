@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COP to USD Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 30px;
+        }
+
+        .flag {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 16px;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .result {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .result-amount {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .result-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .rate-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .loading {
+            color: #667eea;
+            font-style: italic;
+        }
+
+        .error {
+            background: #ffe6e6;
+            border: 1px solid #ffb3b3;
+            color: #cc0000;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            .result-amount {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="flag">🇨🇴 → 🇺🇸</div>
+            <h1>Conversor COP a USD</h1>
+            <div class="subtitle">Colombian Peso to US Dollar</div>
+        </div>
+
+        <div class="input-group">
+            <label for="pesosInput">Colombian Pesos (COP)</label>
+            <input 
+                type="number" 
+                id="pesosInput" 
+                placeholder="Enter amount in pesos..."
+                min="0"
+                step="0.01"
+            >
+        </div>
+
+        <div class="result">
+            <div class="result-amount" id="dollarAmount">$0.00</div>
+            <div class="result-label">US Dollars</div>
+        </div>
+
+        <div class="rate-info" id="rateInfo">
+            <div class="loading">Loading exchange rate...</div>
+        </div>
+
+        <button class="refresh-btn" onclick="fetchExchangeRate()">🔄 Refresh Rate</button>
+    </div>
+
+    <script>
+        let currentRate = 0;
+        let lastUpdated = null;
+
+        const pesosInput = document.getElementById('pesosInput');
+        const dollarAmount = document.getElementById('dollarAmount');
+        const rateInfo = document.getElementById('rateInfo');
+
+        // Fetch exchange rate from a free API
+        async function fetchExchangeRate() {
+            try {
+                rateInfo.innerHTML = '<div class="loading">Loading exchange rate...</div>';
+                
+                // Try multiple APIs for better reliability
+                let data;
+                try {
+                    // First try: Fixer.io free tier
+                    const response1 = await fetch('https://api.fixer.io/latest?base=USD&symbols=COP');
+                    if (response1.ok) {
+                        data = await response1.json();
+                        currentRate = data.rates.COP;
+                    }
+                } catch (e) {
+                    // Fallback: Use exchangerate.host (no API key required)
+                    const response2 = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=COP');
+                    if (response2.ok) {
+                        data = await response2.json();
+                        currentRate = data.rates.COP;
+                    } else {
+                        // Final fallback: Use a reasonable estimated rate
+                        currentRate = 4100; // Approximate rate as fallback
+                        throw new Error('Using estimated rate');
+                    }
+                }
+                
+                lastUpdated = new Date().toLocaleString();
+                
+                // Update rate info display
+                if (data && data.rates) {
+                    rateInfo.innerHTML = `
+                        <strong>Exchange Rate:</strong> 1 USD = ${currentRate.toLocaleString()} COP<br>
+                        <small>Last updated: ${lastUpdated}</small>
+                    `;
+                } else {
+                    rateInfo.innerHTML = `
+                        <strong>Exchange Rate:</strong> 1 USD ≈ ${currentRate.toLocaleString()} COP<br>
+                        <small>Estimated rate (API unavailable) - ${lastUpdated}</small>
+                    `;
+                }
+                
+                // Update conversion if there's an amount entered
+                convertCurrency();
+                
+            } catch (error) {
+                console.error('Error fetching exchange rate:', error);
+                // Use fallback rate
+                if (currentRate === 0) {
+                    currentRate = 4100; // Reasonable fallback rate
+                    lastUpdated = new Date().toLocaleString();
+                }
+                
+                rateInfo.innerHTML = `
+                    <strong>Exchange Rate:</strong> 1 USD ≈ ${currentRate.toLocaleString()} COP<br>
+                    <small style="color: #ff6b35;">Estimated rate (API unavailable) - ${lastUpdated}</small><br>
+                    <small>Tap refresh to try again</small>
+                `;
+                
+                // Still allow conversion with fallback rate
+                convertCurrency();
+            }
+        }
+
+        // Convert currency
+        function convertCurrency() {
+            const pesos = parseFloat(pesosInput.value) || 0;
+            
+            if (currentRate > 0 && pesos >= 0) {
+                const dollars = pesos / currentRate;
+                dollarAmount.textContent = `$${dollars.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                })}`;
+            } else {
+                dollarAmount.textContent = '$0.00';
+            }
+        }
+
+        // Event listeners
+        pesosInput.addEventListener('input', convertCurrency);
+        pesosInput.addEventListener('keyup', convertCurrency);
+
+        // Initialize
+        fetchExchangeRate();
+
+        // Auto-refresh rate every 5 minutes
+        setInterval(fetchExchangeRate, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
