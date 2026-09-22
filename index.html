@@ -322,13 +322,13 @@
                 name: 'Colombian Pesos',
                 symbol: '🇨🇴',
                 code: 'COP',
-                fallbackRate: 4100
+                fallbackRate: 3200
             },
             PEN: {
                 name: 'Peruvian Soles',
                 symbol: '🇵🇪', 
                 code: 'PEN',
-                fallbackRate: 3.75
+                fallbackRate: 3.37
             }
         };
 
@@ -361,19 +361,38 @@
                 let data;
                 let apiUsed = 'estimated';
                 
-                try {
-                    // Try exchangerate.host (free, no API key)
-                    const response = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=COP,PEN');
-                    if (response.ok) {
-                        data = await response.json();
-                        if (data.rates && data.rates.COP && data.rates.PEN) {
-                            exchangeRates.COP = data.rates.COP;
-                            exchangeRates.PEN = data.rates.PEN;
-                            apiUsed = 'live';
-                        }
+                // Free sources with no API key, tried in order.
+                // (exchangerate.host now requires an access_key, so it always failed
+                // and the app silently used the hardcoded fallback rate.)
+                const sources = [
+                    {
+                        url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json',
+                        pick: d => d.usd && { COP: d.usd.cop, PEN: d.usd.pen }
+                    },
+                    {
+                        url: 'https://latest.currency-api.pages.dev/v1/currencies/usd.min.json',
+                        pick: d => d.usd && { COP: d.usd.cop, PEN: d.usd.pen }
+                    },
+                    {
+                        url: 'https://open.er-api.com/v6/latest/USD',
+                        pick: d => d.result === 'success' && { COP: d.rates.COP, PEN: d.rates.PEN }
                     }
-                } catch (e) {
-                    console.log('Primary API failed, using fallback rates');
+                ];
+
+                for (const src of sources) {
+                    try {
+                        const response = await fetch(src.url, { cache: 'no-store' });
+                        if (!response.ok) continue;
+                        const r = src.pick(await response.json());
+                        if (r && r.COP > 0 && r.PEN > 0) {
+                            exchangeRates.COP = r.COP;
+                            exchangeRates.PEN = r.PEN;
+                            apiUsed = 'live';
+                            break;
+                        }
+                    } catch (e) {
+                        console.log('Rate source failed:', src.url, e);
+                    }
                 }
                 
                 // Fallback rates if API fails
@@ -406,7 +425,7 @@
             
             rateInfo.innerHTML = `
                 <strong>Exchange Rates:</strong><br>
-                🇨🇴 1 USD = ${exchangeRates.COP.toLocaleString()} COP<br>
+                🇨🇴 1 USD = ${exchangeRates.COP.toLocaleString('en-US', { maximumFractionDigits: 2 })} COP<br>
                 🇵🇪 1 USD = ${exchangeRates.PEN.toFixed(2)} PEN<br>
                 <small style="color: ${statusColor};">${statusText} - ${lastUpdated}</small>
             `;
