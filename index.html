@@ -143,8 +143,10 @@
 
         .conversion-row {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
+            gap: 10px;
             width: 100%;
             margin-bottom: 10px;
         }
@@ -156,18 +158,36 @@
         .currency-amount {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             font-size: 18px;
             font-weight: 600;
+            max-width: 100%;
+            min-width: 0;
+            text-align: center;
+            /* long results (e.g. 3,355,083.04 COP) shrink instead of overflowing */
+            white-space: nowrap;
+            overflow-wrap: anywhere;
         }
 
         .currency-amount.main {
-            font-size: 24px;
+            font-size: clamp(18px, 6.5vw, 26px);
+            line-height: 1.2;
         }
 
         .currency-symbol {
             font-size: 16px;
             opacity: 0.9;
+            flex-shrink: 0;
+        }
+
+        /* currency code sits under the figure so the row stays narrow */
+        .amount-code {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            opacity: 0.85;
         }
 
         .arrow {
@@ -253,10 +273,6 @@
                 font-size: 20px;
             }
             
-            .currency-amount.main {
-                font-size: 20px;
-            }
-            
             .currency-amount {
                 font-size: 16px;
             }
@@ -306,7 +322,7 @@
                     <span class="currency-symbol" id="fromSymbol">🇨🇴</span>
                     <span id="fromAmount">0</span>
                 </div>
-                <button class="arrow" id="swapBtn" onclick="toggleDirection()" title="Swap direction" aria-label="Swap direction">⇄</button>
+                <button class="arrow" id="swapBtn" onclick="toggleDirection()" title="Swap direction" aria-label="Swap direction">⇅</button>
                 <div class="currency-amount main">
                     <span class="currency-symbol" id="toSymbol">🇺🇸</span>
                     <span id="toAmount">$0.00</span>
@@ -482,6 +498,21 @@
             `;
         }
 
+        // Shrink a figure until it fits its card on one line
+        function fitText(box) {
+            box.style.whiteSpace = 'nowrap';
+            box.style.fontSize = '';
+            const max = box.parentElement.clientWidth;
+            let size = parseFloat(getComputedStyle(box).fontSize);
+            while (box.scrollWidth > max && size > 13) {
+                size -= 1;
+                box.style.fontSize = size + 'px';
+            }
+            if (box.scrollWidth > max) {
+                box.style.whiteSpace = 'normal';
+            }
+        }
+
         // Convert currency
         function convertCurrency() {
             const amount = parseFloat(amountInput.value) || 0;
@@ -493,7 +524,8 @@
 
             if (!(rate > 0) || !(amount >= 0)) {
                 fromAmount.textContent = toUsd ? '0' : '$0.00';
-                toAmount.textContent = toUsd ? '$0.00' : `0.00 ${currentCurrency}`;
+                toAmount.innerHTML = toUsd ? '$0.00' : `0.00<span class="amount-code">${currentCurrency}</span>`;
+                fitAmounts();
                 return;
             }
 
@@ -504,13 +536,22 @@
             } else {
                 // e.g. $10 -> 32,082.07 COP
                 fromAmount.textContent = `$${money(amount)}`;
-                toAmount.textContent = `${money(amount * rate)} ${currentCurrency}`;
+                toAmount.innerHTML = `${money(amount * rate)}<span class="amount-code">${currentCurrency}</span>`;
             }
+
+            fitAmounts();
+        }
+
+        function fitAmounts() {
+            fitText(fromAmount.parentElement);
+            fitText(toAmount.parentElement);
         }
 
         // Event listeners
         amountInput.addEventListener('input', convertCurrency);
         amountInput.addEventListener('keyup', convertCurrency);
+
+        window.addEventListener('resize', fitAmounts);
 
         // Initialize
         fetchExchangeRates();
